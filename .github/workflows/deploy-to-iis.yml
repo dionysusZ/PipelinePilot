@@ -1,0 +1,95 @@
+name: Deploy to IIS
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore PipelinePilot.csproj
+
+    - name: Build
+      run: dotnet build PipelinePilot.csproj -c Release --no-restore
+
+    - name: Stop IIS Site
+      shell: powershell
+      run: |
+        Import-Module WebAdministration
+        $siteName = "PipelinePilot"
+        $appPoolName = "PipelinePilot"
+
+        if (Test-Path "IIS:\Sites\$siteName") {
+          Write-Host "Stopping website: $siteName"
+          Stop-WebSite -Name $siteName -ErrorAction SilentlyContinue
+        }
+
+        if (Test-Path "IIS:\AppPools\$appPoolName") {
+          Write-Host "Stopping app pool: $appPoolName"
+          Stop-WebAppPool -Name $appPoolName -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
+        }
+
+    - name: Publish to IIS folder
+      run: dotnet publish PipelinePilot.csproj -c Release -o D:\PipelinePilot\publish --no-build
+
+    - name: Update web.config for logging
+      shell: powershell
+      run: |
+        $webConfigPath = "D:\PipelinePilot\publish\web.config"
+        if (Test-Path $webConfigPath) {
+          $content = Get-Content $webConfigPath -Raw
+          $content = $content -replace 'stdoutLogEnabled="false"', 'stdoutLogEnabled="true"'
+          Set-Content -Path $webConfigPath -Value $content
+          Write-Host "Updated web.config to enable logging"
+        }
+
+    - name: Start IIS Site
+      shell: powershell
+      run: |
+        Import-Module WebAdministration
+        $siteName = "PipelinePilot"
+        $appPoolName = "PipelinePilot"
+
+        if (Test-Path "IIS:\AppPools\$appPoolName") {
+          Write-Host "Starting app pool: $appPoolName"
+          Start-WebAppPool -Name $appPoolName
+        }
+
+        if (Test-Path "IIS:\Sites\$siteName") {
+          Write-Host "Starting website: $siteName"
+          Start-WebSite -Name $siteName
+        }
+
+        Start-Sleep -Seconds 2
+
+        # Verify status
+        $appPoolState = (Get-WebAppPoolState -Name $appPoolName).Value
+        $siteState = (Get-WebsiteState -Name $siteName).Value
+
+        Write-Host "App Pool Status: $appPoolState"
+        Write-Host "Website Status: $siteState"
+
+    - name: Deployment Summary
+      shell: powershell
+      run: |
+        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host "Deployment Complete!" -ForegroundColor Green
+        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host "Published to: D:\PipelinePilot\publish" -ForegroundColor Gray
+        Write-Host "Website: http://localhost:8001/weatherforecast" -ForegroundColor Cyan
+        Write-Host "========================================" -ForegroundColor Cyan
