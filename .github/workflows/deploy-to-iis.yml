@@ -16,26 +16,21 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Restore dependencies
-      run: dotnet restore PipelinePilot.csproj
+      run: dotnet restore
 
     - name: Build
-      run: dotnet build PipelinePilot.csproj -c Release --no-restore
+      run: dotnet build -c Release --no-restore
 
-    - name: Create app_offline.htm to stop site
-      shell: powershell
-      run: |
-        $offlineFile = "D:\PipelinePilot\publish\app_offline.htm"
-        "Application is being updated. Please wait..." | Out-File -FilePath $offlineFile -Encoding UTF8
-        Write-Host "Created app_offline.htm to stop site"
-        Start-Sleep -Seconds 3
+    - name: Run tests
+      run: dotnet test --no-build --verbosity normal -c Release
 
-    - name: Publish to IIS folder
-      run: dotnet publish PipelinePilot.csproj -c Release -o D:\PipelinePilot\publish --no-build
+    - name: Publish to temp folder
+      run: dotnet publish PipelinePilot.csproj -c Release -o D:\PipelinePilot\publish-temp --no-build
 
     - name: Update web.config for logging
       shell: powershell
       run: |
-        $webConfigPath = "D:\PipelinePilot\publish\web.config"
+        $webConfigPath = "D:\PipelinePilot\publish-temp\web.config"
         if (Test-Path $webConfigPath) {
           $content = Get-Content $webConfigPath -Raw
           $content = $content -replace 'stdoutLogEnabled="false"', 'stdoutLogEnabled="true"'
@@ -43,7 +38,22 @@ jobs:
           Write-Host "Updated web.config to enable logging"
         }
 
-    - name: Remove app_offline.htm to start site
+    - name: Stop IIS with app_offline.htm
+      shell: powershell
+      run: |
+        $offlineFile = "D:\PipelinePilot\publish\app_offline.htm"
+        "<html><body><h1>Updating...</h1></body></html>" | Out-File -FilePath $offlineFile -Encoding UTF8
+        Write-Host "Created app_offline.htm - IIS will stop the app"
+        Start-Sleep -Seconds 5
+
+    - name: Copy files to IIS publish folder
+      shell: powershell
+      run: |
+        Write-Host "Copying files from temp to publish folder..."
+        Copy-Item -Path "D:\PipelinePilot\publish-temp\*" -Destination "D:\PipelinePilot\publish\" -Recurse -Force
+        Write-Host "Files copied successfully"
+
+    - name: Start IIS by removing app_offline.htm
       shell: powershell
       run: |
         $offlineFile = "D:\PipelinePilot\publish\app_offline.htm"
@@ -51,6 +61,7 @@ jobs:
           Remove-Item $offlineFile -Force
           Write-Host "Removed app_offline.htm - site is now online"
         }
+        Start-Sleep -Seconds 2
 
     - name: Deployment Summary
       shell: powershell

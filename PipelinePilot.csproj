@@ -10,4 +10,11 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="PipelinePilot.Tests\**" />
+    <Content Remove="PipelinePilot.Tests\**" />
+    <EmbeddedResource Remove="PipelinePilot.Tests\**" />
+    <None Remove="PipelinePilot.Tests\**" />
+  </ItemGroup>
+
 </Project>
