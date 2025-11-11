@@ -21,23 +21,13 @@ jobs:
     - name: Build
       run: dotnet build PipelinePilot.csproj -c Release --no-restore
 
-    - name: Stop IIS Site
+    - name: Create app_offline.htm to stop site
       shell: powershell
       run: |
-        Import-Module WebAdministration
-        $siteName = "PipelinePilot"
-        $appPoolName = "PipelinePilot"
-
-        if (Test-Path "IIS:\Sites\$siteName") {
-          Write-Host "Stopping website: $siteName"
-          Stop-WebSite -Name $siteName -ErrorAction SilentlyContinue
-        }
-
-        if (Test-Path "IIS:\AppPools\$appPoolName") {
-          Write-Host "Stopping app pool: $appPoolName"
-          Stop-WebAppPool -Name $appPoolName -ErrorAction SilentlyContinue
-          Start-Sleep -Seconds 3
-        }
+        $offlineFile = "D:\PipelinePilot\publish\app_offline.htm"
+        "Application is being updated. Please wait..." | Out-File -FilePath $offlineFile -Encoding UTF8
+        Write-Host "Created app_offline.htm to stop site"
+        Start-Sleep -Seconds 3
 
     - name: Publish to IIS folder
       run: dotnet publish PipelinePilot.csproj -c Release -o D:\PipelinePilot\publish --no-build
@@ -53,31 +43,14 @@ jobs:
           Write-Host "Updated web.config to enable logging"
         }
 
-    - name: Start IIS Site
+    - name: Remove app_offline.htm to start site
       shell: powershell
       run: |
-        Import-Module WebAdministration
-        $siteName = "PipelinePilot"
-        $appPoolName = "PipelinePilot"
-
-        if (Test-Path "IIS:\AppPools\$appPoolName") {
-          Write-Host "Starting app pool: $appPoolName"
-          Start-WebAppPool -Name $appPoolName
+        $offlineFile = "D:\PipelinePilot\publish\app_offline.htm"
+        if (Test-Path $offlineFile) {
+          Remove-Item $offlineFile -Force
+          Write-Host "Removed app_offline.htm - site is now online"
         }
-
-        if (Test-Path "IIS:\Sites\$siteName") {
-          Write-Host "Starting website: $siteName"
-          Start-WebSite -Name $siteName
-        }
-
-        Start-Sleep -Seconds 2
-
-        # Verify status
-        $appPoolState = (Get-WebAppPoolState -Name $appPoolName).Value
-        $siteState = (Get-WebsiteState -Name $siteName).Value
-
-        Write-Host "App Pool Status: $appPoolState"
-        Write-Host "Website Status: $siteState"
 
     - name: Deployment Summary
       shell: powershell
