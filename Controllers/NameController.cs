@@ -9,7 +9,7 @@ namespace PipelinePilot.Controllers
         [HttpGet]
         public string Get()
         {
-            return "Vugar";
+            return "Vusal";
         }
     }
 }
