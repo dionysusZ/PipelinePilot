@@ -66,9 +66,4 @@ jobs:
     - name: Deployment Summary
       shell: powershell
       run: |
-        Write-Host "========================================" -ForegroundColor Cyan
-        Write-Host "Deployment Complete!" -ForegroundColor Green
-        Write-Host "========================================" -ForegroundColor Cyan
-        Write-Host "Published to: D:\PipelinePilot\publish" -ForegroundColor Gray
-        Write-Host "Website: http://localhost:8001/weatherforecast" -ForegroundColor Cyan
-        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host "Deployment Complete!"

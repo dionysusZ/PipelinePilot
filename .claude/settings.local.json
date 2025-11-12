@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./config.cmd:*)",
+      "Bash(./run.cmd)",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
